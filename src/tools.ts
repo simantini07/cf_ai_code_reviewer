@@ -1,233 +1,202 @@
+// =========================================
+// File: src/tools.ts
+// =========================================
 import { tool } from "ai";
 import { z } from "zod";
 
-// Helper function to detect language from code
+// Simple heuristic language detection
 function detectLanguage(code: string): string {
-  if (code.includes("function") || code.includes("const") || code.includes("let") || code.includes("=>")) {
-    return "javascript";
-  }
-  if (code.includes("def ") || code.includes("import ") || code.includes("print(")) {
-    return "python";
-  }
-  if (code.includes("public class") || code.includes("System.out")) {
-    return "java";
-  }
+  if (code.includes("function") || code.includes("const") || code.includes("let") || code.includes("=>")) return "javascript";
+  if (code.includes("def ") || code.includes("import ") || code.includes("print(")) return "python";
+  if (code.includes("public class") || code.includes("System.out")) return "java";
   return "unknown";
 }
 
-// Tool 1: Analyze Code for Bugs
+// --- Tool 1: Analyze for Bugs ---
 export const analyzeBugs = (tool as any)({
-  description: "Analyze code for potential bugs, logic errors, and edge cases. Call this first when reviewing code.",
+  description: "Analyze code for potential bugs, logic errors, and edge cases. Call this first.",
   parameters: z.object({
     code: z.string().describe("The code to analyze"),
-    language: z.string().optional().describe("Programming language (e.g., javascript, python)"),
+    language: z.string().optional(),
   }),
   execute: async ({ code, language }: { code: string; language?: string }) => {
-    console.log("🔧 analyzeBugs called with language:", language);
-    
     const detectedLanguage = language || detectLanguage(code);
-    const issues = [];
-    
-    // Bug patterns
+    const issues: string[] = [];
+
     if (code.includes("== null") || code.includes("!= null")) {
-      issues.push("⚠️ Using == or != for null checks - use === or !== instead");
+      issues.push("⚠️ Use strict equality for null checks (=== / !==).");
     }
-    if (code.match(/\bvar\s+/)) {
-      issues.push("⚠️ Found 'var' keyword - use 'let' or 'const' for block scoping");
+    if (/\bvar\s+/.test(code)) {
+      issues.push("⚠️ Avoid 'var'; prefer 'let' or 'const'.");
     }
     if (!code.includes("try") && (code.includes("JSON.parse") || code.includes("fetch"))) {
-      issues.push("⚠️ Missing error handling for operations that can throw errors");
+      issues.push("⚠️ Add error handling around throwing operations.");
     }
-    if (code.match(/for\s*\([^)]*arr1[^)]*\)/)) {
-      issues.push("🐛 Loop variable 'arr1' conflicts with function parameter - variable shadowing");
+    if (/for\s*\([^)]*arr1[^)]*\)/.test(code)) {
+      issues.push("🐛 Variable shadowing with 'arr1' inside loop.");
     }
-    if (code.match(/arr1\s*>\s*5/)) {
-      issues.push("🐛 Loop condition 'arr1 > 5' will never be true if arr1 starts at 0 - infinite loop or zero iterations");
+    if (/arr1\s*>\s*5/.test(code)) {
+      issues.push("🐛 Suspicious loop condition 'arr1 > 5'.");
     }
-    if (code.match(/\[arr1\]\s*\+\s*\[arr2\]/)) {
-      issues.push("🐛 Array addition [arr1] + [arr2] will concatenate as strings, not add numbers");
+    if (/\[arr1\]\s*\+\s*\[arr2\]/.test(code)) {
+      issues.push("🐛 `[arr1] + [arr2]` concatenates strings; doesn’t sum arrays.");
     }
-    
+
     return {
       analyzed: true,
       language: detectedLanguage,
       issuesFound: issues.length,
-      issues: issues.length > 0 ? issues : ["✅ No obvious bugs detected"],
+      issues: issues.length ? issues : ["✅ No obvious bugs detected"],
       codeLength: code.length,
     };
   },
 }) as any;
 
-// Tool 2: Check Code Security
+// --- Tool 2: Security ---
 export const checkSecurity = (tool as any)({
-  description: "Scan code for security vulnerabilities like SQL injection, XSS, code injection. Call this after analyzeBugs.",
+  description: "Scan for security vulnerabilities (SQLi, XSS, code injection). Call second.",
   parameters: z.object({
-    code: z.string().describe("The code to check for security issues"),
-    language: z.string().optional().describe("Programming language"),
+    code: z.string(),
+    language: z.string().optional(),
   }),
   execute: async ({ code, language }: { code: string; language?: string }) => {
-    console.log("🔧 checkSecurity called with language:", language);
-    
     const detectedLanguage = language || detectLanguage(code);
-    const vulnerabilities = [];
-    
-    // Security patterns
+    const vulnerabilities: string[] = [];
+
     if (code.includes("eval(")) {
-      vulnerabilities.push("🚨 CRITICAL: eval() detected - can execute arbitrary code");
+      vulnerabilities.push("🚨 CRITICAL: `eval` may execute untrusted code.");
     }
-    if (code.match(/innerHTML\s*=/)) {
-      vulnerabilities.push("⚠️ HIGH: innerHTML usage detected - XSS vulnerability risk");
+    if (/innerHTML\s*=/.test(code)) {
+      vulnerabilities.push("⚠️ HIGH: direct `innerHTML` assignment risks XSS.");
     }
     if (code.includes("SELECT") && code.includes("+")) {
-      vulnerabilities.push("🚨 CRITICAL: Possible SQL injection - use parameterized queries");
+      vulnerabilities.push("🚨 CRITICAL: string-built SQL; use parameters.");
     }
-    if (code.match(/password|secret|key/i) && !code.match(/hash|encrypt/i)) {
-      vulnerabilities.push("⚠️ HIGH: Sensitive data without encryption/hashing detected");
+    if (/password|secret|key/i.test(code) && !/hash|encrypt/i.test(code)) {
+      vulnerabilities.push("⚠️ HIGH: sensitive data appears unprotected.");
     }
     if (code.includes("console.log")) {
-      vulnerabilities.push("ℹ️ LOW: console.log() should be removed in production code");
+      vulnerabilities.push("ℹ️ LOW: remove debug logging in production.");
     }
-    
+
+    const severity =
+      vulnerabilities.some(v => v.includes("CRITICAL")) ? "CRITICAL" :
+      vulnerabilities.some(v => v.includes("HIGH")) ? "HIGH" : "LOW";
+
     return {
       scanned: true,
       language: detectedLanguage,
       vulnerabilitiesFound: vulnerabilities.length,
-      vulnerabilities: vulnerabilities.length > 0 ? vulnerabilities : ["✅ No security vulnerabilities detected"],
-      severity: vulnerabilities.some(v => v.includes("CRITICAL")) ? "CRITICAL" : 
-                vulnerabilities.some(v => v.includes("HIGH")) ? "HIGH" : "LOW",
+      vulnerabilities: vulnerabilities.length ? vulnerabilities : ["✅ No security issues detected"],
+      severity,
     };
   },
 }) as any;
 
-// Tool 3: Suggest Performance Improvements
+// --- Tool 3: Performance ---
 export const suggestPerformance = (tool as any)({
-  description: "Identify performance issues and optimization opportunities. Call this after checkSecurity.",
+  description: "Identify performance issues & optimization opportunities. Call third.",
   parameters: z.object({
-    code: z.string().describe("The code to analyze for performance"),
-    language: z.string().optional().describe("Programming language"),
+    code: z.string(),
+    language: z.string().optional(),
   }),
   execute: async ({ code, language }: { code: string; language?: string }) => {
-    console.log("🔧 suggestPerformance called with language:", language);
-    
     const detectedLanguage = language || detectLanguage(code);
-    const suggestions = [];
-    
-    // Performance patterns
-    const nestedLoops = (code.match(/for\s*\(/g) || []).length;
-    if (nestedLoops >= 2) {
-      suggestions.push(`⚡ Nested loops detected - O(n²) time complexity, consider optimization`);
-    }
-    
-    if (code.match(/\.map\([^)]+\)\.filter\(/)) {
-      suggestions.push("⚡ Chained map().filter() - combine into single operation to reduce iterations");
-    }
-    
-    if (code.includes("querySelector") && code.includes("for")) {
-      suggestions.push("⚡ DOM queries in loops - cache selectors outside the loop");
-    }
-    
-    if (code.match(/console\.log.*\+/)) {
-      suggestions.push("⚡ String concatenation in console.log - use template literals for better performance");
-    }
-    
+    const suggestions: string[] = [];
+
+    const loops = (code.match(/for\s*\(/g) || []).length;
+    if (loops >= 2) suggestions.push("⚡ Nested loops (O(n²)); consider optimizing.");
+    if (/\.map\([^)]+\)\.filter\(/.test(code)) suggestions.push("⚡ Combine map/filter to reduce passes.");
+    if (code.includes("querySelector") && code.includes("for")) suggestions.push("⚡ Cache DOM queries outside loops.");
+    if (/console\.log.*\+/.test(code)) suggestions.push("⚡ Prefer template literals over string concatenation.");
+
     return {
       analyzed: true,
       language: detectedLanguage,
       suggestionsCount: suggestions.length,
-      suggestions: suggestions.length > 0 ? suggestions : ["✅ No obvious performance issues found"],
+      suggestions: suggestions.length ? suggestions : ["✅ No obvious performance issues found"],
     };
   },
 }) as any;
 
-// Tool 4: Check Code Style & Best Practices
+// --- Tool 4: Style ---
 export const checkStyle = (tool as any)({
-  description: "Check code style, naming conventions, and best practices. Call this last.",
+  description: "Check code style & best practices. Call last.",
   parameters: z.object({
-    code: z.string().describe("The code to check for style issues"),
-    language: z.string().optional().describe("Programming language"),
+    code: z.string(),
+    language: z.string().optional(),
   }),
   execute: async ({ code, language }: { code: string; language?: string }) => {
-    console.log("🔧 checkStyle called with language:", language);
-    
     const detectedLanguage = language || detectLanguage(code);
-    const styleIssues = [];
-    
-    // Style checks
+    const styleIssues: string[] = [];
+
     const hasComments = code.includes("//") || code.includes("/*");
-    if (!hasComments && code.length > 50) {
-      styleIssues.push("📝 No comments found - add documentation for better maintainability");
-    }
-    
-    if (code.match(/function\s+[a-z]/)) {
-      styleIssues.push("📝 Function names should be descriptive and follow camelCase convention");
-    }
-    
+    if (!hasComments && code.length > 50) styleIssues.push("📝 Add brief documentation/comments.");
+    if (/function\s+[a-z]/.test(code)) styleIssues.push("📝 Ensure descriptive camelCase function names.");
     const lines = code.split("\n");
     const longLines = lines.filter(l => l.length > 80);
-    if (longLines.length > 0) {
-      styleIssues.push(`📝 ${longLines.length} line(s) exceed 80 characters - consider breaking them up`);
-    }
-    
-    if (code.match(/\blet\s+(\w+)\s*=.*for\s*\(\s*let\s+\1/)) {
-      styleIssues.push("📝 Variable shadowing detected - loop variable has same name as outer variable");
-    }
-    
-    if (!code.includes("  ") && code.includes("\t")) {
-      styleIssues.push("📝 Inconsistent indentation - mix of tabs and spaces detected");
-    }
-    
+    if (longLines.length) styleIssues.push(`📝 ${longLines.length} line(s) exceed 80 chars.`);
+    if (/\blet\s+(\w+)\s*=.*for\s*\(\s*let\s+\1/.test(code)) styleIssues.push("📝 Variable shadowing in loop.");
+    if (!code.includes("  ") && code.includes("\t")) styleIssues.push("📝 Inconsistent indentation (tabs vs spaces).");
+
     return {
       checked: true,
       language: detectedLanguage,
       issuesFound: styleIssues.length,
-      issues: styleIssues.length > 0 ? styleIssues : ["✅ Code style looks good"],
+      issues: styleIssues.length ? styleIssues : ["✅ Code style looks good"],
     };
   },
 }) as any;
 
-// Tool 5: Generate Unit Tests
+// --- Optional tools kept for manual/confirmed execution ---
+// NOTE: Not exported via `tools` to the model to avoid stalling.
+
 export const generateTests = (tool as any)({
-  description: "Generate unit test suggestions for the provided code",
+  description: "Generate unit test suggestions for the provided code (requires confirmation).",
   parameters: z.object({
-    code: z.string().describe("The code to generate tests for"),
-    language: z.string().optional().describe("Programming language"),
-    framework: z.string().optional().describe("Test framework (jest, pytest, etc.)"),
+    code: z.string(),
+    language: z.string().optional(),
+    framework: z.string().optional(),
   }),
-  // No execute = requires confirmation from user
+  // no execute => requires explicit confirmation route
 }) as any;
 
-// Tool 6: Save Review to History
 export const saveReview = (tool as any)({
-  description: "Save code review results to history for future reference",
+  description: "Save code review results for future reference (requires explicit call).",
   parameters: z.object({
-    reviewSummary: z.string().describe("Summary of the review"),
-    codeSnippet: z.string().describe("First 100 chars of reviewed code"),
+    reviewSummary: z.string(),
+    codeSnippet: z.string(),
   }),
   execute: async ({ reviewSummary, codeSnippet }: { reviewSummary: string; codeSnippet: string }) => {
-    console.log("🔧 saveReview called");
+    // Why: demonstrate stateful action w/o persisting outside Worker runtime for now.
     return {
       saved: true,
       timestamp: new Date().toISOString(),
       snippet: codeSnippet.substring(0, 100),
+      summaryLength: reviewSummary.length,
     };
   },
 }) as any;
 
-// Export all tools
+// Export set used by the server (keep generateTests out of the auto toolset)
 export const tools = {
   analyzeBugs,
   checkSecurity,
   suggestPerformance,
   checkStyle,
-  generateTests,
-  saveReview,
+  // generateTests, // excluded from auto tool-calls
+  // saveReview,    // optional to include after you handle persistence UX
 };
 
-// Tools that require user confirmation
+// Executions that can be triggered via /api/tool-exec (manual confirm path)
 export const executions = {
-  generateTests: async ({ code, language, framework }: { 
-    code: string; 
-    language?: string; 
+  generateTests: async ({
+    code,
+    language,
+    framework,
+  }: {
+    code: string;
+    language?: string;
     framework?: string;
   }) => {
     const detectedLanguage = language || detectLanguage(code);
