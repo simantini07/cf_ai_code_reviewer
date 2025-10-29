@@ -1,238 +1,220 @@
-# 🤖 Chat Agent Starter Kit
+cf_ai_code_reviewer
+An AI-powered code review assistant built on Cloudflare's edge infrastructure, providing real-time analysis of code for bugs, security vulnerabilities, performance issues, and style improvements.
+🚀 Features
 
-![npm i agents command](./npm-agents-banner.svg)
+Real-time Code Analysis: Instant feedback on code quality using Llama 3.3 70B
+Multi-dimensional Review: Analyzes bugs, security, performance, and style
+Persistent Memory: Session-based history using Durable Objects
+Semantic Search: Vector-based code similarity search with Vectorize
+GitHub Integration: Automated PR reviews via webhooks
+Streaming Responses: Real-time UI updates as analysis progresses
+Session Management: Cookie-based user sessions for personalized experience
 
-<a href="https://deploy.workers.cloudflare.com/?url=https://github.com/cloudflare/agents-starter"><img src="https://deploy.workers.cloudflare.com/button" alt="Deploy to Cloudflare"/></a>
+🏗️ Architecture
+Core Components
 
-A starter template for building AI-powered chat agents using Cloudflare's Agent platform, powered by [`agents`](https://www.npmjs.com/package/agents). This project provides a foundation for creating interactive chat experiences with AI, complete with a modern UI and tool integration capabilities.
+LLM: Llama 3.3 70B (via Cloudflare Workers AI)
+Workflow: Multi-step deterministic pipeline with 4 analysis tools
+User Input: React-based chat interface with code editor
+Memory/State:
 
-## Features
+Durable Objects for session persistence
+Vectorize for semantic code search
+Session cookies for user identification
 
-- 💬 Interactive chat interface with AI
-- 🛠️ Built-in tool system with human-in-the-loop confirmation
-- 📅 Advanced task scheduling (one-time, delayed, and recurring via cron)
-- 🌓 Dark/Light theme support
-- ⚡️ Real-time streaming responses
-- 🔄 State management and chat history
-- 🎨 Modern, responsive UI
 
-## Prerequisites
 
-- Cloudflare account
-- OpenAI API key
+Tech Stack
 
-## Quick Start
+Runtime: Cloudflare Workers
+AI Model: @cf/meta/llama-3.3-70b-instruct-fp8-fast
+Frontend: React + TypeScript
+State Management: Durable Objects
+Vector Database: Cloudflare Vectorize
+Embeddings: @cf/baai/bge-small-en-v1.5
 
-1. Create a new project:
+📋 Prerequisites
 
-```bash
-npx create-cloudflare@latest --template cloudflare/agents-starter
-```
+Node.js 18+ and npm
+Cloudflare account (free tier works)
+Wrangler CLI installed globally: npm install -g wrangler
 
-2. Install dependencies:
+🛠️ Local Development Setup
+1. Clone the Repository
+bashgit clone https://github.com/yourusername/cf_ai_code_reviewer.git
+cd cf_ai_code_reviewer
+2. Install Dependencies
+bashnpm install
+3. Configure Wrangler
+Create wrangler.toml in the project root:
+tomlname = "cf-ai-code-reviewer"
+main = "src/server.ts"
+compatibility_date = "2024-01-01"
 
-```bash
-npm install
-```
+[ai]
+binding = "AI"
 
-3. Set up your environment:
+[[durable_objects.bindings]]
+name = "REVIEW_SESSIONS"
+class_name = "ReviewSessionDO"
+script_name = "cf-ai-code-reviewer"
 
-Create a `.dev.vars` file:
+[[migrations]]
+tag = "v1"
+new_classes = ["ReviewSessionDO"]
 
-```env
-OPENAI_API_KEY=your_openai_api_key
-```
+[[vectorize]]
+binding = "VECTORIZE"
+index_name = "code-reviews"
 
-4. Run locally:
+[vars]
+# Optional: for GitHub webhook integration
+# GITHUB_WEBHOOK_SECRET = "your-webhook-secret"
 
-```bash
-npm start
-```
+[env.production]
+name = "cf-ai-code-reviewer"
+4. Create Vectorize Index
+bashwrangler vectorize create code-reviews --dimensions=384 --metric=cosine
+5. Run Development Server
+bashnpm run dev
+The app will be available at http://localhost:8787
+🌐 Deployment
+Option 1: Deploy to Cloudflare (Recommended)
+Step 1: Login to Cloudflare
+bashwrangler login
+Step 2: Create Vectorize Index (if not done)
+bashwrangler vectorize create code-reviews --dimensions=384 --metric=cosine
+Step 3: Deploy
+bashnpm run deploy
+# or
+wrangler deploy
+Your app will be live at: https://cf-ai-code-reviewer.<your-subdomain>.workers.dev
+Step 4: (Optional) Custom Domain
+bashwrangler deploy --route "codereview.yourdomain.com/*"
+Option 2: GitHub Integration (Optional)
+To enable automated PR reviews:
 
-5. Deploy:
+Generate GitHub Token:
 
-```bash
-npm run deploy
-```
+Go to GitHub Settings → Developer Settings → Personal Access Tokens
+Create token with repo scope
+Save the token securely
 
-## Project Structure
 
-```
+Add Secrets:
+
+bashecho "your-github-token" | wrangler secret put GITHUB_TOKEN
+echo "your-webhook-secret" | wrangler secret put GITHUB_WEBHOOK_SECRET
+
+Configure Webhook:
+
+Go to your GitHub repository → Settings → Webhooks
+Add webhook: https://your-worker-url.workers.dev/api/webhook/github
+Content type: application/json
+Secret: (same as GITHUB_WEBHOOK_SECRET above)
+Events: Select "Pull requests"
+
+
+
+📖 Usage
+Web Interface
+
+Navigate to your deployed URL or http://localhost:8787
+Paste code into the left editor panel
+Click "Run Security Analysis"
+Review the comprehensive analysis on the right panel
+
+API Endpoints
+POST /api/chat
+Main code review endpoint with streaming responses.
+bashcurl -X POST https://your-worker.workers.dev/api/chat \
+  -H "Content-Type: application/json" \
+  -d '{
+    "messages": [
+      {
+        "role": "user",
+        "content": "```javascript\nfunction test() { var x = 5; }\n```"
+      }
+    ]
+  }'
+GET /api/history
+Retrieve session review history.
+bashcurl https://your-worker.workers.dev/api/history
+GET /api/search?q=security
+Semantic search across past reviews.
+bashcurl "https://your-worker.workers.dev/api/search?q=sql+injection"
+POST /api/webhook/github
+GitHub webhook endpoint for automated PR reviews (requires configuration).
+🔧 Configuration
+Environment Variables
+Add to wrangler.toml under [vars]:
+
+GITHUB_WEBHOOK_SECRET: Secret for verifying GitHub webhooks
+GITHUB_TOKEN: Personal access token for GitHub API (use wrangler secret put)
+
+Bindings
+
+AI: Workers AI binding (automatic)
+REVIEW_SESSIONS: Durable Object namespace
+VECTORIZE: Vectorize index binding
+
+🧪 Testing
+Test with the included example code (buggy JavaScript):
+javascriptfunction processData(data) {
+  var result = [];
+  for (var i = 0; i < data.length; i++) {
+    if (data[i] == null) {
+      console.log("Found null");
+      eval("result.push(" + data[i] + ")");
+    }
+  }
+  document.getElementById("output").innerHTML = result;
+  return result;
+}
+Expected issues found:
+
+🐛 Use of var instead of let/const
+🚨 Critical: eval() security vulnerability
+⚠️ XSS risk with innerHTML
+⚠️ Loose equality (==) instead of strict (===)
+
+📊 Analysis Categories
+The AI assistant performs four types of analysis:
+
+🐛 Bug Analysis: Logic errors, edge cases, type issues
+🔒 Security Check: SQL injection, XSS, code injection, sensitive data exposure
+⚡ Performance Review: Algorithm complexity, redundant operations, optimization opportunities
+📝 Style & Best Practices: Code formatting, naming conventions, documentation
+
+🏛️ Project Structure
+cf_ai_code_reviewer/
 ├── src/
-│   ├── app.tsx        # Chat UI implementation
-│   ├── server.ts      # Chat agent logic
-│   ├── tools.ts       # Tool definitions
-│   ├── utils.ts       # Helper functions
-│   └── styles.css     # UI styling
-```
+│   ├── server.ts          # Main Worker + API routes
+│   ├── review_session.ts  # Durable Object for session state
+│   ├── tools.ts           # Analysis tools (bugs, security, perf, style)
+│   └── app.tsx            # React frontend
+├── wrangler.toml          # Cloudflare configuration
+├── package.json           # Dependencies
+├── README.md              # This file
+└── PROMPTS.md             # AI prompts used during development
+🤝 Contributing
+This is a submission for Cloudflare's AI assignment. All work is original, with AI-assisted development documented in PROMPTS.md.
+📝 License
+MIT License - feel free to use and modify for your own projects.
+🔗 Links
 
-## Customization Guide
+Cloudflare Workers AI: https://developers.cloudflare.com/workers-ai/
+Durable Objects: https://developers.cloudflare.com/durable-objects/
+Vectorize: https://developers.cloudflare.com/vectorize/
 
-### Adding New Tools
+💡 Future Enhancements
 
-Add new tools in `tools.ts` using the tool builder:
+ Support for more languages (Go, Rust, TypeScript)
+ Inline code suggestions
+ Diff-based review mode
+ Team collaboration features
+ Custom rule configuration
+ Integration with VS Code extension
 
-```ts
-// Example of a tool that requires confirmation
-const searchDatabase = tool({
-  description: "Search the database for user records",
-  parameters: z.object({
-    query: z.string(),
-    limit: z.number().optional()
-  })
-  // No execute function = requires confirmation
-});
-
-// Example of an auto-executing tool
-const getCurrentTime = tool({
-  description: "Get current server time",
-  parameters: z.object({}),
-  execute: async () => new Date().toISOString()
-});
-
-// Scheduling tool implementation
-const scheduleTask = tool({
-  description:
-    "schedule a task to be executed at a later time. 'when' can be a date, a delay in seconds, or a cron pattern.",
-  parameters: z.object({
-    type: z.enum(["scheduled", "delayed", "cron"]),
-    when: z.union([z.number(), z.string()]),
-    payload: z.string()
-  }),
-  execute: async ({ type, when, payload }) => {
-    // ... see the implementation in tools.ts
-  }
-});
-```
-
-To handle tool confirmations, add execution functions to the `executions` object:
-
-```typescript
-export const executions = {
-  searchDatabase: async ({
-    query,
-    limit
-  }: {
-    query: string;
-    limit?: number;
-  }) => {
-    // Implementation for when the tool is confirmed
-    const results = await db.search(query, limit);
-    return results;
-  }
-  // Add more execution handlers for other tools that require confirmation
-};
-```
-
-Tools can be configured in two ways:
-
-1. With an `execute` function for automatic execution
-2. Without an `execute` function, requiring confirmation and using the `executions` object to handle the confirmed action. NOTE: The keys in `executions` should match `toolsRequiringConfirmation` in `app.tsx`.
-
-### Use a different AI model provider
-
-The starting [`server.ts`](https://github.com/cloudflare/agents-starter/blob/main/src/server.ts) implementation uses the [`ai-sdk`](https://sdk.vercel.ai/docs/introduction) and the [OpenAI provider](https://sdk.vercel.ai/providers/ai-sdk-providers/openai), but you can use any AI model provider by:
-
-1. Installing an alternative AI provider for the `ai-sdk`, such as the [`workers-ai-provider`](https://sdk.vercel.ai/providers/community-providers/cloudflare-workers-ai) or [`anthropic`](https://sdk.vercel.ai/providers/ai-sdk-providers/anthropic) provider:
-2. Replacing the AI SDK with the [OpenAI SDK](https://github.com/openai/openai-node)
-3. Using the Cloudflare [Workers AI + AI Gateway](https://developers.cloudflare.com/ai-gateway/providers/workersai/#workers-binding) binding API directly
-
-For example, to use the [`workers-ai-provider`](https://sdk.vercel.ai/providers/community-providers/cloudflare-workers-ai), install the package:
-
-```sh
-npm install workers-ai-provider
-```
-
-Add an `ai` binding to `wrangler.jsonc`:
-
-```jsonc
-// rest of file
-  "ai": {
-    "binding": "AI"
-  }
-// rest of file
-```
-
-Replace the `@ai-sdk/openai` import and usage with the `workers-ai-provider`:
-
-```diff
-// server.ts
-// Change the imports
-- import { openai } from "@ai-sdk/openai";
-+ import { createWorkersAI } from 'workers-ai-provider';
-
-// Create a Workers AI instance
-+ const workersai = createWorkersAI({ binding: env.AI });
-
-// Use it when calling the streamText method (or other methods)
-// from the ai-sdk
-- const model = openai("gpt-4o-2024-11-20");
-+ const model = workersai("@cf/deepseek-ai/deepseek-r1-distill-qwen-32b")
-```
-
-Commit your changes and then run the `agents-starter` as per the rest of this README.
-
-### Modifying the UI
-
-The chat interface is built with React and can be customized in `app.tsx`:
-
-- Modify the theme colors in `styles.css`
-- Add new UI components in the chat container
-- Customize message rendering and tool confirmation dialogs
-- Add new controls to the header
-
-### Example Use Cases
-
-1. **Customer Support Agent**
-   - Add tools for:
-     - Ticket creation/lookup
-     - Order status checking
-     - Product recommendations
-     - FAQ database search
-
-2. **Development Assistant**
-   - Integrate tools for:
-     - Code linting
-     - Git operations
-     - Documentation search
-     - Dependency checking
-
-3. **Data Analysis Assistant**
-   - Build tools for:
-     - Database querying
-     - Data visualization
-     - Statistical analysis
-     - Report generation
-
-4. **Personal Productivity Assistant**
-   - Implement tools for:
-     - Task scheduling with flexible timing options
-     - One-time, delayed, and recurring task management
-     - Task tracking with reminders
-     - Email drafting
-     - Note taking
-
-5. **Scheduling Assistant**
-   - Build tools for:
-     - One-time event scheduling using specific dates
-     - Delayed task execution (e.g., "remind me in 30 minutes")
-     - Recurring tasks using cron patterns
-     - Task payload management
-     - Flexible scheduling patterns
-
-Each use case can be implemented by:
-
-1. Adding relevant tools in `tools.ts`
-2. Customizing the UI for specific interactions
-3. Extending the agent's capabilities in `server.ts`
-4. Adding any necessary external API integrations
-
-## Learn More
-
-- [`agents`](https://github.com/cloudflare/agents/blob/main/packages/agents/README.md)
-- [Cloudflare Agents Documentation](https://developers.cloudflare.com/agents/)
-- [Cloudflare Workers Documentation](https://developers.cloudflare.com/workers/)
-
-## License
-
-MIT
+📧 Support
+For issues or questions, please open an issue on GitHub.
