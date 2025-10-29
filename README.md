@@ -15,6 +15,12 @@ An AI-powered code review assistant built on Cloudflare's edge infrastructure, p
 - 🔗 **GitHub Integration** - Automated PR reviews via webhooks (optional)
 - 🎨 **Modern UI** - Responsive React interface with dark gradients
 
+## 📸 Interface Preview
+
+![AI Code Review Assistant Interface](assets/AI_code_review.png)
+
+*Real-time code analysis showing bug detection, security vulnerabilities, performance issues, and style suggestions*
+
 ## 🏗️ Architecture
 
 
