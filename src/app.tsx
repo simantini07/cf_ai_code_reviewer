@@ -175,7 +175,7 @@ export default function App() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 20 }}>
             <div>
               <h1 style={{ 
-                fontSize: 32, 
+                fontSize: 36, 
                 fontWeight: 700, 
                 margin: 0,
                 marginBottom: 8,
@@ -184,7 +184,7 @@ export default function App() {
                 🔍 AI Code Review Assistant
               </h1>
               <p style={{ 
-                fontSize: 14, 
+                fontSize: 16, 
                 margin: 0,
                 opacity: 0.95,
                 fontWeight: 300
@@ -221,7 +221,7 @@ export default function App() {
             background: '#fafafa'
           }}>
             <div style={{ marginBottom: 20 }}>
-              <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 16, color: '#2c3e50' }}>
+              <h2 style={{ fontSize: 20, fontWeight: 600, marginBottom: 16, color: '#2c3e50' }}>
                 📝 Submit Code for Review
               </h2>
               <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
@@ -363,7 +363,7 @@ export default function App() {
               borderBottom: '2px solid #f0f0f0',
               background: 'linear-gradient(to right, #f8f9fa, #ffffff)'
             }}>
-              <h2 style={{ fontSize: 18, fontWeight: 600, margin: 0, color: '#2c3e50' }}>
+              <h2 style={{ fontSize: 20, fontWeight: 600, margin: 0, color: '#2c3e50' }}>
                 📊 Analysis Results
               </h2>
             </div>

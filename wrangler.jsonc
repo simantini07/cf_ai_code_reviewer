@@ -1,13 +1,25 @@
+// ============================================================================
+// File: wrangler.jsonc
+// WHY: Bind Durable Object + Vectorize, add migration
+// ============================================================================
 {
   "name": "cf-ai-code-reviewer",
   "main": "src/server.ts",
   "compatibility_date": "2024-10-01",
   "compatibility_flags": ["nodejs_compat"],
-  "ai": {
-    "binding": "AI"
+  "ai": { "binding": "AI" },
+  "assets": { "directory": "./public", "binding": "ASSETS" },
+
+  "durable_objects": {
+    "bindings": [
+      { "name": "REVIEW_SESSIONS", "class_name": "ReviewSessionDO" }
+    ]
   },
-  "assets": {
-    "directory": "./public",
-    "binding": "ASSETS"
-  }
+  "migrations": [
+    { "tag": "v1", "new_classes": ["ReviewSessionDO"] }
+  ],
+
+  "vectorize": [
+    { "binding": "VECTORIZE", "index_name": "code-review-mem" }
+  ]
 }
