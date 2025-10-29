@@ -17,6 +17,7 @@ An AI-powered code review assistant built on Cloudflare's edge infrastructure, p
 
 ## 🏗️ Architecture
 
+
 ### Core Components
 
 | Component | Technology | Purpose |
@@ -195,9 +196,12 @@ GitHub webhook endpoint for automated PR reviews (requires configuration).
 
 ## 🔧 Configuration
 
-### Optional: GitHub Integration
+### Optional: GitHub Integration (Feature Available - Not Tested)
 
-Enable automated PR reviews:
+> ⚠️ **Note:** GitHub webhook integration is implemented but not tested for this submission. 
+> The core chat interface works independently without any GitHub configuration.
+
+Enable automated PR reviews (optional):
 
 #### 1. Generate GitHub Token
 - Go to GitHub Settings → Developer Settings → Personal Access Tokens
@@ -205,7 +209,6 @@ Enable automated PR reviews:
 - Save the token
 
 #### 2. Add Secrets to Cloudflare
-
 ```bash
 echo "your-github-token" | wrangler secret put GITHUB_TOKEN
 echo "your-webhook-secret" | wrangler secret put GITHUB_WEBHOOK_SECRET
@@ -222,7 +225,7 @@ echo "your-webhook-secret" | wrangler secret put GITHUB_WEBHOOK_SECRET
 
 #### 4. Test It
 
-Open a PR and watch the bot comment with a full code review!
+Open a PR and the bot should comment with a full code review.
 
 ### Environment Variables
 
